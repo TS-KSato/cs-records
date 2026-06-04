@@ -38,15 +38,21 @@
     margin-bottom: 8px;
   }
 
-  /* 経路選択ボタン */
-  .routes {
+  /* 選択軸（各軸の中は単一選択、軸どうしは独立） */
+  .axis { margin-bottom: 14px; }
+  .axis:last-child { margin-bottom: 0; }
+  .axis-label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .options {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 8px;
   }
-  .route-btn {
-    text-align: left;
-    padding: 12px 14px;
+  .opt-btn {
+    padding: 8px 14px;
     border: 1px solid var(--border);
     border-radius: 6px;
     background: #fff;
@@ -54,8 +60,8 @@
     font-size: 0.95rem;
     cursor: pointer;
   }
-  .route-btn:hover { border-color: var(--accent); }
-  .route-btn.selected {
+  .opt-btn:hover { border-color: var(--accent); }
+  .opt-btn.selected {
     border-color: var(--accent);
     background: var(--accent-bg);
     font-weight: bold;
@@ -158,20 +164,47 @@
 <main>
   <h1>カスタマーサポート回答補助ツール</h1>
 
-  <!-- 経路選択：1つだけ選択状態にできる -->
+  <!--
+    経路選択：4つの選択軸。各軸は独立し、同一軸内では1つだけ選択できる。
+    data-axis で軸を識別する。返信相手の軸のボタンだけ data-kind を持ち、
+    出力欄の上のラベル切り替えに使う（user=ユーザー向け回答文 / customer=カスタマー向け説明文）。
+  -->
   <section>
     <div class="section-label">経路を選ぶ</div>
-    <div class="routes" id="routes">
-      <!-- data-kind は出力欄の上に出すラベルの種類。user=ユーザー向け回答文 / customer=カスタマー向け説明文 -->
-      <button type="button" class="route-btn" data-route="payment" data-kind="user">
-        メール｜決済代行(GMO/SB Payment)・直接返信
-      </button>
-      <button type="button" class="route-btn" data-route="carrier" data-kind="user">
-        メール｜キャリア決済(docomo/au/softbank)・外部一次対応
-      </button>
-      <button type="button" class="route-btn" data-route="phone" data-kind="customer">
-        電話｜折り返し(全キャリア)・折り返し対応
-      </button>
+
+    <div class="axis" data-axis="channel">
+      <div class="axis-label">経路</div>
+      <div class="options">
+        <button type="button" class="opt-btn" data-value="mail">メール</button>
+        <button type="button" class="opt-btn" data-value="phone">電話</button>
+      </div>
+    </div>
+
+    <div class="axis" data-axis="agent">
+      <div class="axis-label">決済代行</div>
+      <div class="options">
+        <button type="button" class="opt-btn" data-value="none">代行なし（素のキャリア）</button>
+        <button type="button" class="opt-btn" data-value="gmo">GMO</button>
+        <button type="button" class="opt-btn" data-value="sbpayment">Softbank Payment</button>
+      </div>
+    </div>
+
+    <div class="axis" data-axis="method">
+      <div class="axis-label">決済手段</div>
+      <div class="options">
+        <button type="button" class="opt-btn" data-value="docomo">docomo</button>
+        <button type="button" class="opt-btn" data-value="au">au</button>
+        <button type="button" class="opt-btn" data-value="softbank">softbank</button>
+        <button type="button" class="opt-btn" data-value="creditcard">クレカ</button>
+      </div>
+    </div>
+
+    <div class="axis" data-axis="recipient">
+      <div class="axis-label">返信相手</div>
+      <div class="options">
+        <button type="button" class="opt-btn" data-value="user" data-kind="user">ユーザー向け</button>
+        <button type="button" class="opt-btn" data-value="staff" data-kind="customer">折り返し担当向け</button>
+      </div>
     </div>
   </section>
 
@@ -223,27 +256,31 @@
     customer: "カスタマー向け説明文"
   };
 
-  var selectedRoute = null; // 現在選択中の経路ボタン
-
-  var routesEl = document.getElementById("routes");
   var kindLabelEl = document.getElementById("outputKindLabel");
 
-  // 経路ボタン：1つだけ選択状態にする
-  routesEl.addEventListener("click", function (e) {
-    var btn = e.target.closest(".route-btn");
-    if (!btn) return;
+  // 選択軸ごとに単一選択。各軸の .options 内でクリックされたボタンだけ selected にする。
+  // 軸どうしは独立で、互いの選択に影響しない。
+  // 注意: 決済代行=GMO と 決済手段=au は実在しない組み合わせだが、
+  //       今回は選択制限を設けず、運用で回避する方針。
+  var axes = document.querySelectorAll(".axis");
+  axes.forEach(function (axis) {
+    axis.addEventListener("click", function (e) {
+      var btn = e.target.closest(".opt-btn");
+      if (!btn) return;
 
-    var buttons = routesEl.querySelectorAll(".route-btn");
-    for (var i = 0; i < buttons.length; i++) {
-      buttons[i].classList.remove("selected");
-    }
-    btn.classList.add("selected");
-    selectedRoute = btn;
+      var buttons = axis.querySelectorAll(".opt-btn");
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].classList.remove("selected");
+      }
+      btn.classList.add("selected");
 
-    // 選んだ経路に応じて出力欄のラベルを切り替える
-    var kind = btn.getAttribute("data-kind");
-    kindLabelEl.textContent = KIND_LABELS[kind] || "";
-    kindLabelEl.style.display = "block";
+      // 返信相手の軸だけ、出力欄の上のラベル切り替えに紐づける。
+      if (axis.getAttribute("data-axis") === "recipient") {
+        var kind = btn.getAttribute("data-kind");
+        kindLabelEl.textContent = KIND_LABELS[kind] || "";
+        kindLabelEl.style.display = "block";
+      }
+    });
   });
 
   // 回答文を作成：この段階では生成せず、操作確認用の文言だけ出す
