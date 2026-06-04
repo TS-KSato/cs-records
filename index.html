@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カスタマーサポート回答補助ツール</title>
+<style>
+  /* 装飾は最小限。読みやすさ優先のシンプルな見た目にする。 */
+  :root {
+    --fg: #1a1a1a;
+    --muted: #666;
+    --border: #ccc;
+    --accent: #2563a8;
+    --accent-bg: #e8f0fa;
+    --bg: #fafafa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.7;
+    margin: 0;
+    padding: 24px 16px;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.25rem;
+    margin: 0 0 20px;
+  }
+  section { margin-bottom: 24px; }
+  .section-label {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+
+  /* 経路選択ボタン */
+  .routes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .route-btn {
+    text-align: left;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--fg);
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .route-btn:hover { border-color: var(--accent); }
+  .route-btn.selected {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    font-weight: bold;
+  }
+
+  /* 入力欄 */
+  textarea {
+    width: 100%;
+    min-height: 140px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    resize: vertical;
+  }
+
+  /* メインの操作ボタン */
+  .primary-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .primary-btn:hover { opacity: 0.9; }
+
+  /* 出力欄 */
+  .output-kind-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .output {
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    white-space: pre-wrap;
+    color: var(--fg);
+  }
+  .output.placeholder { color: var(--muted); }
+
+  /* フィードバック */
+  .feedback {
+    display: flex;
+    gap: 8px;
+  }
+  .feedback-btn {
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--fg);
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .feedback-btn:hover { border-color: var(--accent); }
+  .feedback-btn.selected {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>カスタマーサポート回答補助ツール</h1>
+
+  <!-- 経路選択：1つだけ選択状態にできる -->
+  <section>
+    <div class="section-label">経路を選ぶ</div>
+    <div class="routes" id="routes">
+      <!-- data-kind は出力欄の上に出すラベルの種類。user=ユーザー向け回答文 / customer=カスタマー向け説明文 -->
+      <button type="button" class="route-btn" data-route="payment" data-kind="user">
+        メール｜決済代行(GMO/SB Payment)・直接返信
+      </button>
+      <button type="button" class="route-btn" data-route="carrier" data-kind="user">
+        メール｜キャリア決済(docomo/au/softbank)・B社経由
+      </button>
+      <button type="button" class="route-btn" data-route="phone" data-kind="customer">
+        電話｜折り返し(全キャリア)・折り返し担当B社へ
+      </button>
+    </div>
+  </section>
+
+  <!-- 問い合わせ内容の貼り付け -->
+  <section>
+    <div class="section-label">問い合わせ内容</div>
+    <!--
+      TODO（個人情報保護）: 後でこの入力文をマスクする機能を足す予定。
+      氏名・メールアドレス・電話番号・カード番号・住所などを、
+      回答生成や外部送信の前に伏字化する処理をここ（または送信直前）に挟む。
+    -->
+    <textarea id="inquiry" placeholder="問い合わせ内容をここに貼り付けてください"></textarea>
+  </section>
+
+  <!-- 回答文の作成（この段階では生成しない） -->
+  <section>
+    <button type="button" class="primary-btn" id="generate">回答文を作成</button>
+  </section>
+
+  <!-- 出力欄 -->
+  <section>
+    <!-- 選んだ経路に応じてラベルを切り替える。未選択のときは非表示。 -->
+    <div class="output-kind-label" id="outputKindLabel" style="display:none;"></div>
+    <div class="output placeholder" id="output">（ここに回答文が表示されます）</div>
+  </section>
+
+  <!-- フィードバック -->
+  <section>
+    <div class="section-label">フィードバック</div>
+    <div class="feedback" id="feedback">
+      <button type="button" class="feedback-btn" data-feedback="good">よい</button>
+      <button type="button" class="feedback-btn" data-feedback="fixed">直した</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  // 出力欄の上に出すラベル文言
+  var KIND_LABELS = {
+    user: "ユーザー向け回答文",
+    customer: "カスタマー向け説明文"
+  };
+
+  var selectedRoute = null; // 現在選択中の経路ボタン
+
+  var routesEl = document.getElementById("routes");
+  var kindLabelEl = document.getElementById("outputKindLabel");
+
+  // 経路ボタン：1つだけ選択状態にする
+  routesEl.addEventListener("click", function (e) {
+    var btn = e.target.closest(".route-btn");
+    if (!btn) return;
+
+    var buttons = routesEl.querySelectorAll(".route-btn");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.remove("selected");
+    }
+    btn.classList.add("selected");
+    selectedRoute = btn;
+
+    // 選んだ経路に応じて出力欄のラベルを切り替える
+    var kind = btn.getAttribute("data-kind");
+    kindLabelEl.textContent = KIND_LABELS[kind] || "";
+    kindLabelEl.style.display = "block";
+  });
+
+  // 回答文を作成：この段階では生成せず、操作確認用の文言だけ出す
+  document.getElementById("generate").addEventListener("click", function () {
+    // NOTE: 本実装では、ここで入力文のマスク → 回答生成、の順に処理する予定。
+    var outputEl = document.getElementById("output");
+    outputEl.textContent = "（この段階では生成しません。操作確認用です）";
+    outputEl.classList.remove("placeholder");
+  });
+
+  // フィードバック：1つだけ選択状態にする（記録の保存は後で実装）
+  var feedbackEl = document.getElementById("feedback");
+  feedbackEl.addEventListener("click", function (e) {
+    var btn = e.target.closest(".feedback-btn");
+    if (!btn) return;
+
+    var buttons = feedbackEl.querySelectorAll(".feedback-btn");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.remove("selected");
+    }
+    btn.classList.add("selected");
+  });
+</script>
+</body>
+</html>
