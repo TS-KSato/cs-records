@@ -86,6 +86,35 @@
   }
   .primary-btn:hover { opacity: 0.9; }
 
+  /* マスク確認ボタン（補助操作なので控えめな見た目） */
+  .secondary-btn {
+    padding: 10px 20px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--accent);
+    font-size: 0.95rem;
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .secondary-btn:hover { background: var(--accent-bg); }
+
+  /* マスク後プレビュー */
+  .mask-notice {
+    font-size: 0.8rem;
+    color: #b45309;
+    margin: 12px 0 6px;
+  }
+  .mask-preview {
+    min-height: 80px;
+    padding: 12px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    background: #fff;
+    white-space: pre-wrap;
+    color: var(--fg);
+  }
+
   /* 出力欄 */
   .output-kind-label {
     font-size: 0.8rem;
@@ -150,16 +179,24 @@
   <section>
     <div class="section-label">問い合わせ内容</div>
     <!--
-      TODO（個人情報保護）: 後でこの入力文をマスクする機能を足す予定。
-      氏名・メールアドレス・電話番号・カード番号・住所などを、
-      回答生成や外部送信の前に伏字化する処理をここ（または送信直前）に挟む。
+      個人情報保護: 入力文のマスク機能は「マスクを確認」ボタンで実装済み
+      （メールアドレス・電話番号・カード番号を伏字化）。
+      氏名・住所などのマスクは今後の追加対象。
+      すべて画面内（JavaScript）で完結し、外部送信は行わない。
     -->
     <textarea id="inquiry" placeholder="問い合わせ内容をここに貼り付けてください"></textarea>
+
+    <!-- マスク後プレビュー：入力欄の元の文章は書き換えず、別領域に伏字化した文章を表示する。初期は非表示。 -->
+    <div id="maskBlock" style="display:none;">
+      <div class="mask-notice">※ 個人情報を自動で伏字にしています。誤って隠れた箇所がないか確認してください</div>
+      <div class="mask-preview" id="maskPreview"></div>
+    </div>
   </section>
 
   <!-- 回答文の作成（この段階では生成しない） -->
   <section>
     <button type="button" class="primary-btn" id="generate">回答文を作成</button>
+    <button type="button" class="secondary-btn" id="maskCheck">マスクを確認</button>
   </section>
 
   <!-- 出力欄 -->
@@ -215,6 +252,41 @@
     var outputEl = document.getElementById("output");
     outputEl.textContent = "（この段階では生成しません。操作確認用です）";
     outputEl.classList.remove("placeholder");
+  });
+
+  // 個人情報マスク：入力文をコピーして指定の項目を伏字に置換した文字列を返す。
+  // すべて画面内で完結し、外部送信は行わない。元の入力文は書き換えない。
+  function maskPII(text) {
+    var masked = text;
+
+    // メールアドレス（@ を含む一般的な形式）→ [メール]
+    masked = masked.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[メール]");
+
+    // 数字のまとまり（ハイフン・空白区切りを含む連続数字列）を桁数で判定する。
+    // カード番号(14〜16桁) と 電話番号(10〜11桁・先頭0) のみ置換し、
+    // 注文番号・日付・金額などの短い数字（13桁以下）は誤って隠さないよう残す。
+    masked = masked.replace(/\d[\d \-]*\d/g, function (run) {
+      var digits = run.replace(/[ \-]/g, "");
+      // カード番号らしい長い数字列（14〜16桁）
+      if (digits.length >= 14 && digits.length <= 16) {
+        return "[カード番号]";
+      }
+      // 電話番号（10〜11桁、先頭が0。090/080/070 等もこれに含まれる）
+      if ((digits.length === 10 || digits.length === 11) && digits.charAt(0) === "0") {
+        return "[電話番号]";
+      }
+      // 上記の桁数条件を満たさないものはそのまま
+      return run;
+    });
+
+    return masked;
+  }
+
+  // マスクを確認：入力欄の文章を伏字化して、入力欄の下のプレビューに表示する。
+  document.getElementById("maskCheck").addEventListener("click", function () {
+    var inquiry = document.getElementById("inquiry").value;
+    document.getElementById("maskPreview").textContent = maskPII(inquiry);
+    document.getElementById("maskBlock").style.display = "block";
   });
 
   // フィードバック：1つだけ選択状態にする（記録の保存は後で実装）
