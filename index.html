@@ -66,6 +66,14 @@
     background: var(--accent-bg);
     font-weight: bold;
   }
+  /* 無効化（その代行で選べない決済手段）：薄いグレー＋クリック不可、hover で枠色を変えない */
+  .opt-btn:disabled {
+    background: #f0f0f0;
+    color: #aaa;
+    border-color: var(--border);
+    cursor: not-allowed;
+  }
+  .opt-btn:disabled:hover { border-color: var(--border); }
 
   /* 入力欄 */
   textarea {
@@ -181,17 +189,26 @@
     </div>
 
     <!--
-      決済：実在する組み合わせだけを並べた単一選択軸。
-      data-value に機械可読な値を持たせ（後で記録を引くキーに使う）、表示ラベルとは分けている。
+      決済代行×決済手段の2軸。data-value に機械可読な値を持たせ（後で記録を引くキーに使う）、
+      表示ラベルとは分けている。代行を選ぶと、その代行で実在する手段だけを有効化し、
+      無効な手段は disabled でグレーアウト＋クリック不可にする（対応表は JS の METHODS_BY_AGENT）。
     -->
-    <div class="axis" data-axis="payment">
-      <div class="axis-label">決済</div>
+    <div class="axis" data-axis="agent">
+      <div class="axis-label">決済代行</div>
       <div class="options">
-        <button type="button" class="opt-btn" data-value="carrier-docomo">docomo</button>
-        <button type="button" class="opt-btn" data-value="carrier-au">au</button>
-        <button type="button" class="opt-btn" data-value="carrier-softbank">softbank</button>
-        <button type="button" class="opt-btn" data-value="card-gmo">GMO</button>
-        <button type="button" class="opt-btn" data-value="card-sbp">SBPS</button>
+        <button type="button" class="opt-btn" data-value="direct">代行なし（素のキャリア）</button>
+        <button type="button" class="opt-btn" data-value="gmo">GMO</button>
+        <button type="button" class="opt-btn" data-value="sbps">SBPS</button>
+      </div>
+    </div>
+
+    <div class="axis" data-axis="method">
+      <div class="axis-label">決済手段</div>
+      <div class="options">
+        <button type="button" class="opt-btn" data-value="docomo">docomo</button>
+        <button type="button" class="opt-btn" data-value="au">au</button>
+        <button type="button" class="opt-btn" data-value="softbank">softbank</button>
+        <button type="button" class="opt-btn" data-value="card">クレカ</button>
       </div>
     </div>
 
@@ -254,9 +271,35 @@
 
   var kindLabelEl = document.getElementById("outputKindLabel");
 
+  // 決済代行ごとに選べる決済手段（無効な組み合わせを手段側で選べなくするための対応表）。
+  // キー・値とも data-value をそのまま使う（後で記録を引くキーにも使う）。
+  var METHODS_BY_AGENT = {
+    direct: ["docomo", "au", "softbank"],
+    gmo:    ["docomo", "softbank", "card"],
+    sbps:   ["docomo", "card"]
+  };
+
+  var methodAxis = document.querySelector('.axis[data-axis="method"]');
+
+  // 選んだ代行に応じて手段ボタンの有効/無効を更新する。
+  // agentValue が未指定（代行未選択）のあいだは手段4つを全て有効にする。
+  function updateMethodAvailability(agentValue) {
+    var allowed = METHODS_BY_AGENT[agentValue] || null;
+    var methodButtons = methodAxis.querySelectorAll(".opt-btn");
+    for (var i = 0; i < methodButtons.length; i++) {
+      var mbtn = methodButtons[i];
+      var enabled = !allowed || allowed.indexOf(mbtn.getAttribute("data-value")) !== -1;
+      mbtn.disabled = !enabled;
+      // いま選択中の手段がその代行で無効になったら、選択を解除する。
+      if (!enabled) {
+        mbtn.classList.remove("selected");
+      }
+    }
+  }
+
   // 選択軸ごとに単一選択。各軸の .options 内でクリックされたボタンだけ selected にする。
   // 軸どうしは独立で、互いの選択に影響しない。
-  // 決済軸は実在する組み合わせだけを選択肢に並べているため、存在しない組み合わせは選べない。
+  // 無効化（disabled）された手段ボタンはクリックイベントが発火しないので自然に無視される。
   var axes = document.querySelectorAll(".axis");
   axes.forEach(function (axis) {
     axis.addEventListener("click", function (e) {
@@ -274,6 +317,11 @@
         var kind = btn.getAttribute("data-kind");
         kindLabelEl.textContent = KIND_LABELS[kind] || "";
         kindLabelEl.style.display = "block";
+      }
+
+      // 決済代行を選んだら、その代行で選べる決済手段だけを有効化する。
+      if (axis.getAttribute("data-axis") === "agent") {
+        updateMethodAvailability(btn.getAttribute("data-value"));
       }
     });
   });
