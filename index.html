@@ -278,12 +278,83 @@
     });
   });
 
-  // 回答文を作成：この段階では生成せず、操作確認用の文言だけ出す
+  // 記録の索引（records/index.json）をページ読み込み時に取得して保持する。
+  // AIや外部APIは使わず、同一サイトの静的JSONを fetch するだけ。
+  var records = [];
+  var recordsError = false; // 読み込み失敗フラグ（生成時に画面へ知らせる。画面は落とさない）
+  fetch("records/index.json")
+    .then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    })
+    .then(function (data) { records = data; })
+    .catch(function () { recordsError = true; });
+
+  // 指定軸で選択中（.selected）のボタンの data-value を返す。未選択なら null。
+  function getSelectedValue(axisName) {
+    var sel = document.querySelector('.axis[data-axis="' + axisName + '"] .opt-btn.selected');
+    return sel ? sel.getAttribute("data-value") : null;
+  }
+
+  // 回答文を作成：選んだ決済・経路に該当する記録を索引から引き、候補として出力欄に並べる。
   document.getElementById("generate").addEventListener("click", function () {
-    // NOTE: 本実装では、ここで入力文のマスク → 回答生成、の順に処理する予定。
     var outputEl = document.getElementById("output");
-    outputEl.textContent = "（この段階では生成しません。操作確認用です）";
     outputEl.classList.remove("placeholder");
+
+    // 索引の読み込みに失敗していたら、その旨だけ出して終了。
+    if (recordsError) {
+      outputEl.textContent = "記録の読み込みに失敗しました";
+      return;
+    }
+
+    var payment = getSelectedValue("payment");
+    var channel = getSelectedValue("channel");
+    var recipient = getSelectedValue("recipient");
+
+    // 決済が未選択なら絞り込めない（経路・返信相手の未選択は許容する）。
+    if (!payment) {
+      outputEl.textContent = "決済を選んでください";
+      return;
+    }
+
+    // 絞り込み：決済が payment 配列に含まれること。
+    // 経路が選択されていれば、その記録の channel 配列に含まれることも条件にする。
+    var matched = records.filter(function (rec) {
+      if (rec.payment.indexOf(payment) === -1) return false;
+      if (channel && rec.channel.indexOf(channel) === -1) return false;
+      return true;
+    });
+
+    if (matched.length === 0) {
+      outputEl.textContent = "該当する記録がありません。policy.md の方針に沿って手動で作成してください";
+      return;
+    }
+
+    // 該当記録を候補として縦に並べる（出力欄は white-space:pre-wrap なので改行で十分）。
+    var blocks = matched.map(function (rec) {
+      var lines = [];
+      lines.push("#" + rec.id + " " + rec.title); // 見出し
+      lines.push(rec.summary);                     // 要約
+
+      if (recipient === "staff") {
+        // 折り返し担当向け：定型文があれば出し、続けて担当向け注意を必ず出す。
+        if (rec.user_reply) {
+          lines.push(rec.user_reply);
+        }
+        lines.push("【担当向け注意】" + rec.staff_note);
+      } else {
+        // ユーザー向け（または返信相手が未選択）：staff_note は出さない。
+        if (rec.user_reply) {
+          lines.push(rec.user_reply);
+        } else {
+          lines.push("※この決済はユーザー向けの定型文がありません（返金可否などに注意。折り返し担当に確認）");
+        }
+      }
+      return lines.join("\n");
+    });
+
+    // 候補どうしは区切り線で分ける。
+    outputEl.textContent = blocks.join("\n----\n");
   });
 
   // 個人情報マスク：入力文をコピーして指定の項目を伏字に置換した文字列を返す。
