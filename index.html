@@ -180,22 +180,18 @@
       </div>
     </div>
 
-    <div class="axis" data-axis="agent">
-      <div class="axis-label">決済代行</div>
+    <!--
+      決済：実在する組み合わせだけを並べた単一選択軸。
+      data-value に機械可読な値を持たせ（後で記録を引くキーに使う）、表示ラベルとは分けている。
+    -->
+    <div class="axis" data-axis="payment">
+      <div class="axis-label">決済</div>
       <div class="options">
-        <button type="button" class="opt-btn" data-value="none">代行なし（素のキャリア）</button>
-        <button type="button" class="opt-btn" data-value="gmo">GMO</button>
-        <button type="button" class="opt-btn" data-value="sbpayment">Softbank Payment</button>
-      </div>
-    </div>
-
-    <div class="axis" data-axis="method">
-      <div class="axis-label">決済手段</div>
-      <div class="options">
-        <button type="button" class="opt-btn" data-value="docomo">docomo</button>
-        <button type="button" class="opt-btn" data-value="au">au</button>
-        <button type="button" class="opt-btn" data-value="softbank">softbank</button>
-        <button type="button" class="opt-btn" data-value="creditcard">クレカ</button>
+        <button type="button" class="opt-btn" data-value="carrier-docomo">docomo（キャリア決済）</button>
+        <button type="button" class="opt-btn" data-value="carrier-au">au（キャリア決済）</button>
+        <button type="button" class="opt-btn" data-value="carrier-softbank">softbank（キャリア決済）</button>
+        <button type="button" class="opt-btn" data-value="card-gmo">クレカ・GMO</button>
+        <button type="button" class="opt-btn" data-value="card-sbp">クレカ・Softbank Payment</button>
       </div>
     </div>
 
@@ -260,8 +256,7 @@
 
   // 選択軸ごとに単一選択。各軸の .options 内でクリックされたボタンだけ selected にする。
   // 軸どうしは独立で、互いの選択に影響しない。
-  // 注意: 決済代行=GMO と 決済手段=au は実在しない組み合わせだが、
-  //       今回は選択制限を設けず、運用で回避する方針。
+  // 決済軸は実在する組み合わせだけを選択肢に並べているため、存在しない組み合わせは選べない。
   var axes = document.querySelectorAll(".axis");
   axes.forEach(function (axis) {
     axis.addEventListener("click", function (e) {
