@@ -1,0 +1,38 @@
+[
+  {
+    "id": "0005",
+    "title": "GMO利用サイトでキャリア側から強制停止され、退会済みに見えるが継続中",
+    "payment": ["card-gmo", "carrier-docomo", "carrier-softbank"],
+    "channel": ["mail", "phone"],
+    "summary": "退会済み表示は誤り。GMO Payment側で継続中か確認する。",
+    "user_reply": "お客様のご登録状況を確認いたしましたところ、退会手続きが完了しておらず契約が継続している状態でございました。今回、当方にて正しく退会処理を行いましたのでご報告いたします。ご不便をおかけし申し訳ございません。",
+    "staff_note": "ユーザー情報の退会日時(YYYY/MM/DD 23:59:59)は『課金なし=退会』処理で入る誤った表示。実態はGMO Payment側で確認する。"
+  },
+  {
+    "id": "0006",
+    "title": "広告コードとクッキー/セッションの不整合による表示異常",
+    "payment": ["carrier-docomo", "carrier-au", "carrier-softbank", "card-gmo"],
+    "channel": ["mail", "phone"],
+    "summary": "広告コードとクッキー/セッションの食い違いで表示が誤動作。原因は未確定。",
+    "user_reply": "お手数ですが、一度ブラウザのキャッシュ・Cookieを削除のうえ、改めてご希望のコースの案内ページから選択をお試しいただけますでしょうか。それでも改善しない場合は、アクセスされたページのURLをお知らせください。",
+    "staff_note": "白紙の場合は停止済みの古い広告コードURLが濃厚。Cookie削除だけでは不足で、有効な正しいURLから入り直す案内が必要。原因は推測で未確定。"
+  },
+  {
+    "id": "0007",
+    "title": "「カード払い」という申告は層の取り違えの可能性あり",
+    "payment": ["card-gmo", "card-sbp", "carrier-docomo", "carrier-au", "carrier-softbank"],
+    "channel": ["mail", "phone"],
+    "summary": "「カード払い」の申告を額面で受けない。運営の課金はキャリア経由で層が違う。",
+    "user_reply": "お問い合わせの件について、ご登録内容と課金状況を確認いたしました。当サイトのご利用料金は、お客様がご契約の携帯キャリアを通じてご請求しております。お客様がキャリア側でご設定の支払い方法（クレジットカード等）と、当サイトからのご請求の仕組みは別のものとなります。",
+    "staff_note": "実際の決済方式(キャリア決済か代行のカード決済か)を管理画面で照合してから確定。カード番号はこのツールに入力しない。"
+  },
+  {
+    "id": "0008",
+    "title": "softbankの2系統(A/B)とクレカ(GMO/SBPS)で返金・取消の可否が異なる",
+    "payment": ["carrier-softbank", "card-gmo", "card-sbp"],
+    "channel": ["mail", "phone"],
+    "summary": "返金・取消の可否は決済手段で変わる。初回〜2回目では断定しない。",
+    "user_reply": "",
+    "staff_note": "softbankAとクレカ(GMO/SBPS)はシステムで取消・返金できず口座振込のみ。docomo/au/softbankB等はシステム対応可。初回〜2回目では返金可否に踏み込まない(policy.md原則3)。softbankA/Bの定義は未確定。"
+  }
+]
